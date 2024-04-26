@@ -4,5 +4,7 @@ __pycache__
 *.json
 *.png
 *.jpg
-*.ipynb
 *.h5
+
+sample_data/*
+

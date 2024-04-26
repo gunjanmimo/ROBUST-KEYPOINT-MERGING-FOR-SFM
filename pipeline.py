@@ -44,8 +44,52 @@ import os
 import subprocess
 import argparse
 import sqlite3
+from PIL import Image
+import cv2
+from tqdm import tqdm
 
-# from .colmap.colmap.database import *
+
+# local imports
+from colmap.colmap import database
+from utils import database_handler
+
+
+# --------------------------------------------------------------------------------#
+def get_minimum_dimensions(image_folder):
+    min_width, min_height = float("inf"), float("inf")
+    for image_name in tqdm(os.listdir(image_folder)):
+        if image_name.lower().endswith(
+            (".png", ".jpg", ".jpeg", ".bmp", ".gif", ".JPG")
+        ):
+            image_path = os.path.join(image_folder, image_name)
+            with Image.open(image_path) as img:
+                width, height = img.size
+                min_width, min_height = min(min_width, width), min(min_height, height)
+    return min_width, min_height
+
+
+def crop_images_to_min_size(image_folder, min_width, min_height, output_dir):
+    for idx, image_name in tqdm(
+        enumerate(os.listdir(image_folder)), total=len(os.listdir(image_folder))
+    ):
+        if image_name.lower().endswith((".png", ".jpg", ".jpeg", ".bmp", ".gif")):
+            image_path = os.path.join(image_folder, image_name)
+            output_image_path = os.path.join(output_dir, f"{idx}.jpg")
+            image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+            # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+            image = image[:min_height, :min_width, :]
+            cv2.imwrite(output_image_path, image)
+
+
+def preprocess_images(image_folder, output_dir):
+    # fix the image size to make it uniform
+    min_width, min_height = get_minimum_dimensions(image_folder)
+    os.makedirs(output_dir, exist_ok=True)
+    crop_images_to_min_size(image_folder, min_width, min_height, output_dir)
+
+
+# --------------------------------------------------------------------------------#
 
 
 def reconstruction_handler(workspace_dir: str, method: str) -> bool:
@@ -125,43 +169,40 @@ def flann_matcher_handler(workspace_dir: str, method: str) -> bool:
     return True
 
 
-def lighglue_matcher_handler(workspace_dir: str, method: str) -> bool:
-    return
+def lightglue_matcher_handler(workspace_dir: str, method: str) -> bool:
+    # colmap 
+    
+    # disk 
+    
+    return 
 
 
 def disk_handler(workspace_dir: str) -> bool:
 
-    img_dir = f"{workspace_dir}/images"
+    img_dir = f"{workspace_dir}/preprocessed_images"
 
     # disk dir
     disk_dir = f"{workspace_dir}/disk"
     h5_artifacts_destination = f"{disk_dir}/h5"
     database_path = f"{disk_dir}/database.db"
+    # remove existing database file
+    if os.path.exists(database_path):
+        os.remove(database_path)
 
     matching_commands = f"""
-    python detect.py {h5_artifacts_destination} {img_dir}
+    python detect.py --height 1024 --width 1024 {h5_artifacts_destination} {img_dir}
     python match.py --rt 0.95 --save-threshold 100 {h5_artifacts_destination}
-    python colmap/h5_to_db.py --database-path {database_path} {h5_artifacts_destination} {img_dir}
-
-    # colmap exhaustive_matcher --database_path {database_path} --SiftMatching.use_gpu 0
-    
+    python colmap/h5_to_db.py --database-path {database_path} {h5_artifacts_destination} {img_dir} --camera-model='simple-pinhole' --single-camera
     """
-
     output = subprocess.run(matching_commands, shell=True, check=True)
-
-    # # matching the descriptors
-    # flann_matcher_handler(workspace_dir, "disk")
-
-    # # TODO: 3D RECONSTRUCTION AND DENSE RECONSTRUCTION
-
-    # reconstruction_handler(workspace_dir, "disk")
     return True
 
 
 def colmap_sift_handler(workspace_dir: str) -> bool:
 
-    img_dir = f"{workspace_dir}/images"
+    img_dir = f"{workspace_dir}/preprocessed_images"
     colmap_dir = f"{workspace_dir}/colmap"
+    os.makedirs(colmap_dir, exist_ok=True)
     database_path = f"{colmap_dir}/database.db"
 
     matching_commands = f"""
@@ -170,18 +211,9 @@ def colmap_sift_handler(workspace_dir: str) -> bool:
         --database_path {database_path} \
         --image_path {img_dir}\
         --SiftExtraction.use_gpu=1
-            
-    
-    # colmap exhaustive_matcher \
-    #     --database_path {database_path} \
-    #     --SiftMatching.use_gpu=1
+
     """
     output = subprocess.run(matching_commands, shell=True, check=True)
-    # # matching the descriptors
-    # flann_matcher_handler(workspace_dir, "colmap_sift")
-    # # TODO: 3D RECONSTRUCTION AND DENSE RECONSTRUCTION
-    # reconstruction_handler(workspace_dir, "colmap_sift")
-
     return True
 
 
@@ -198,11 +230,65 @@ def keypoint_merge_handler(workspace_dir: str) -> bool:
 
 def main(workspace_dir: str, matcher: str):
 
-    # 1. RUN DISK GET THE DATABASE FILE
-    disk_handler(workspace_dir)
+    # # 1. PREPROCESS THE IMAGES
+    # preprocessed_image_dir = f"{workspace_dir}/preprocessed_images"
+    # # delete if the directory exists
+    # if os.path.exists(preprocessed_image_dir):
+    #     subprocess.run(f"rm -rf {preprocessed_image_dir}", shell=True)
 
-    # 2. RUN THE COLMAP CMD TO GET KEKYPOINTS AND DESCRIPTORS
-    colmap_sift_handler(workspace_dir)
+    # os.makedirs(preprocessed_image_dir, exist_ok=True)
+    # preprocess_images(f"{workspace_dir}/images", f"{workspace_dir}/preprocessed_images")
+    # # ---------------------------------------------------------------------------------------------#
+    # # 2. RUN DISK GET THE DATABASE FILE
+    # disk_handler(workspace_dir)
+
+    # # 3. RUN THE COLMAP CMD TO GET KEYPOINTS AND DESCRIPTORS
+    # colmap_sift_handler(workspace_dir)
+    # # ---------------------------------------------------------------------------------------------#
+    # # 4. MATCHING KEYPOINTS
+    # if matcher == "flann":
+    #     flann_matcher_handler(workspace_dir, "colmap")
+    #     flann_matcher_handler(workspace_dir, "disk")
+    # elif matcher == "lightglue":
+    #     lightglue_matcher_handler(workspace_dir, "colmap")
+    #     lightglue_matcher_handler(workspace_dir, "disk")
+    # else:
+    #     raise ValueError("Unknown matcher")
+    # # ---------------------------------------------------------------------------------------------#
+
+    # 5. CREATE A DATABASE FOR THE MERGED KEYPOINTS
+    print("::: DATABASE MERGING :::")
+    merged_database_path = f"{workspace_dir}/merged_database.db"
+    # delete database file if it exists
+    if os.path.exists(merged_database_path):
+        os.remove(merged_database_path)
+
+    db = database.COLMAPDatabase.connect(merged_database_path)
+    db.create_tables()
+
+    # copy camera and image table from colmap database
+    """
+    IT IS IMPORTANT TO COPY THE CAMERA AND IMAGE TABLES FROM THE COLMAP DATABASE TO THE MERGED DATABASE
+    """
+    database_handler.copy_colmap_database(
+        f"{workspace_dir}/colmap/database.db", merged_database_path
+    )
+    # merge the keypoints
+    database_handler.merge_keypoint(
+        f"{workspace_dir}/colmap/database.db",
+        f"{workspace_dir}/disk/database.db",
+        merged_database_path,
+    )
+    # merge the matches
+    database_handler.merge_matches(
+        f"{workspace_dir}/colmap/database.db",
+        f"{workspace_dir}/disk/database.db",
+        merged_database_path,
+    )
+
+    # close the database
+    db.close()
+    # ---------------------------------------------------------------------------------------------#
 
     pass
 
