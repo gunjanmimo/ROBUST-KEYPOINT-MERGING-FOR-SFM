@@ -169,20 +169,13 @@ def flann_matcher_handler(workspace_dir: str, method: str) -> bool:
     return True
 
 
-def lightglue_matcher_handler(workspace_dir: str, method: str) -> bool:
-    # colmap 
-    
-    # disk 
-    
-    return 
-
-
 def disk_handler(workspace_dir: str) -> bool:
 
     img_dir = f"{workspace_dir}/preprocessed_images"
 
     # disk dir
     disk_dir = f"{workspace_dir}/disk"
+    os.makedirs(disk_dir, exist_ok=True)
     h5_artifacts_destination = f"{disk_dir}/h5"
     database_path = f"{disk_dir}/database.db"
     # remove existing database file
@@ -228,7 +221,7 @@ def keypoint_merge_handler(workspace_dir: str) -> bool:
     return True
 
 
-def main(workspace_dir: str, matcher: str):
+def main(workspace_dir: str):
 
     # # 1. PREPROCESS THE IMAGES
     # preprocessed_image_dir = f"{workspace_dir}/preprocessed_images"
@@ -238,23 +231,18 @@ def main(workspace_dir: str, matcher: str):
 
     # os.makedirs(preprocessed_image_dir, exist_ok=True)
     # preprocess_images(f"{workspace_dir}/images", f"{workspace_dir}/preprocessed_images")
-    # # ---------------------------------------------------------------------------------------------#
-    # # 2. RUN DISK GET THE DATABASE FILE
-    # disk_handler(workspace_dir)
+    # ---------------------------------------------------------------------------------------------#
+    # 2. RUN DISK GET THE DATABASE FILE
+    disk_handler(workspace_dir)
 
-    # # 3. RUN THE COLMAP CMD TO GET KEYPOINTS AND DESCRIPTORS
-    # colmap_sift_handler(workspace_dir)
-    # # ---------------------------------------------------------------------------------------------#
-    # # 4. MATCHING KEYPOINTS
-    # if matcher == "flann":
-    #     flann_matcher_handler(workspace_dir, "colmap")
-    #     flann_matcher_handler(workspace_dir, "disk")
-    # elif matcher == "lightglue":
-    #     lightglue_matcher_handler(workspace_dir, "colmap")
-    #     lightglue_matcher_handler(workspace_dir, "disk")
-    # else:
-    #     raise ValueError("Unknown matcher")
-    # # ---------------------------------------------------------------------------------------------#
+    # 3. RUN THE COLMAP CMD TO GET KEYPOINTS AND DESCRIPTORS
+    colmap_sift_handler(workspace_dir)
+    # ---------------------------------------------------------------------------------------------#
+    # 4. MATCHING KEYPOINTS
+    flann_matcher_handler(workspace_dir, "colmap")
+    flann_matcher_handler(workspace_dir, "disk")
+
+    # ---------------------------------------------------------------------------------------------#
 
     # 5. CREATE A DATABASE FOR THE MERGED KEYPOINTS
     print("::: DATABASE MERGING :::")
@@ -299,13 +287,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--workspace", default="workspace", help="The path to the workspace"
     )
-    parser.add_argument(
-        "--matcher",
-        help="The matcher to use for matching the keypoints",
-    )
 
     args = parser.parse_args()
     workspace_dir = args.workspace
-    matcher = args.matcher
 
-    main(workspace_dir=workspace_dir, matcher=matcher)
+    main(workspace_dir=workspace_dir)
