@@ -110,7 +110,7 @@ def merge_keypoint(
     merged_db = database.COLMAPDatabase.connect(merged_database_path)
 
     # colmap keypoints
-    colmap_keypoints = get_base_keypoints(colmap_cursor, "colmap")
+    colmap_keypoints = get_base_keypoints(colmap_cursor, "disk")
     # disk keypoints
     disk_keypoints = get_base_keypoints(disk_cursor, "disk")
 
@@ -165,10 +165,10 @@ def merge_matches(
         image_id1, image_id2 = pair_id_to_image_ids(pair_id)
         # if pair_id in disk_matches:
         total_colmap_keypoints_img1 = get_base_keypoints_by_image_id(
-            colmap_cursor, "colmap", image_id1
+            colmap_cursor, "disk", image_id1
         )[image_id1].shape[0]
         total_colmap_keypoints_img2 = get_base_keypoints_by_image_id(
-            colmap_cursor, "colmap", image_id2
+            colmap_cursor, "disk", image_id2
         )[image_id2].shape[0]
 
         # print("pair_id", pair_id)
