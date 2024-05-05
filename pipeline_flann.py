@@ -223,14 +223,16 @@ def keypoint_merge_handler(workspace_dir: str) -> bool:
 
 def main(workspace_dir: str):
 
-    # # 1. PREPROCESS THE IMAGES
-    # preprocessed_image_dir = f"{workspace_dir}/preprocessed_images"
-    # # delete if the directory exists
-    # if os.path.exists(preprocessed_image_dir):
-    #     subprocess.run(f"rm -rf {preprocessed_image_dir}", shell=True)
+    # 1. PREPROCESS THE IMAGES
+    preprocessed_image_dir = f"{workspace_dir}/preprocessed_images"
+    # delete if the directory exists
+    if not os.path.exists(preprocessed_image_dir):
+        # subprocess.run(f"rm -rf {preprocessed_image_dir}", shell=True)
 
-    # os.makedirs(preprocessed_image_dir, exist_ok=True)
-    # preprocess_images(f"{workspace_dir}/images", f"{workspace_dir}/preprocessed_images")
+        os.makedirs(preprocessed_image_dir, exist_ok=True)
+        preprocess_images(
+            f"{workspace_dir}/images", f"{workspace_dir}/preprocessed_images"
+        )
     # ---------------------------------------------------------------------------------------------#
     # 2. RUN DISK GET THE DATABASE FILE
     disk_handler(workspace_dir)
